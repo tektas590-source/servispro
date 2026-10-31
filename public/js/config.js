@@ -20,6 +20,14 @@ SP.config = {
   // Platform sahibi (siz) — bu e-postalar Yönetici panelini görür
   adminEmails: ['tektas590@gmail.com'],
   trialDays: 14,
+  // Ödeme yöntemi: 'manual' = havale/EFT (siz panelden aktif edersiniz), 'iyzico' = kartla otomatik abonelik
+  paymentMode: 'manual',
+  bank: {
+    accountHolder: '',          // Hesap sahibi adı soyadı / ünvan
+    bankName: '',               // Banka adı
+    iban: '',                   // TR.. IBAN
+  },
+  vatRate: 20,
   supportPhone: '0 (5xx) xxx xx xx',
   supportEmail: 'destek@servispro.com.tr',
 };

@@ -17,7 +17,7 @@ service cloud.firestore {
     function subActive(tid) {
       let t = get(/databases/$(db)/documents/tenants/$(tid)).data;
       let end = t.get('currentPeriodEnd', null);
-      return t.status == 'active'
+      return (t.status == 'active' && (end == null || request.time < end + duration.value(3, 'd')))
         || (t.status == 'trial' && request.time < t.trialEndsAt)
         || ((t.status == 'canceled' || t.status == 'past_due') && end != null && request.time < end + duration.value(3, 'd'));
     }
@@ -55,9 +55,15 @@ service cloud.firestore {
         && request.resource.data.plan == 'profesyonel'
         && request.resource.data.trialEndsAt < request.time + duration.value(15, 'd')
         && !request.resource.data.keys().hasAny(['iyzico', 'currentPeriodEnd']);
-      allow update: if isOwner(tid)
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['name', 'phone', 'email', 'address', 'taxOffice', 'taxNo', 'iban', 'invoiceNote']);
+      allow update: if (isOwner(tid)
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['name', 'phone', 'email', 'address', 'taxOffice', 'taxNo', 'iban', 'invoiceNote', 'paymentNotice']))
+        // platform yöneticisi havale onayında aboneliği aktif eder / uzatır
+        || (isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['plan', 'status', 'currentPeriodEnd', 'paymentNotice', 'lastManualPayment'])
+          && request.resource.data.status == 'active'
+          && request.resource.data.plan in ['baslangic', 'profesyonel', 'kurumsal']);
       allow delete: if false;
 
       // müşteriler, araçlar, iş emirleri, stok, faturalar, sayaçlar…

@@ -289,3 +289,9 @@ table.lines td { padding: 8px 10px; }
   .doc-head, .doc-2col { grid-template-columns: 1fr; flex-direction: column; }
   .doc .table-wrap, .doc table { font-size: 12px; }
 }
+
+/* Havale ödeme kutusu */
+.pay-box { display: flex; flex-direction: column; gap: 10px; box-shadow: none; background: var(--surface-2); }
+.pay-row { display: grid; grid-template-columns: 150px 1fr auto; gap: 10px; align-items: center; }
+.pay-row b { word-break: break-all; }
+@media (max-width: 560px) { .pay-row { grid-template-columns: 1fr auto; } .pay-row > span { grid-column: 1 / -1; } }

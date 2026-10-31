@@ -100,6 +100,14 @@
       async changePlan(planId) { const t = st.tenants[tid()]; t.plan = planId; save(); SP.session.tenant = { ...t }; },
       async cancelSubscription() { const t = st.tenants[tid()]; t.status = 'canceled'; save(); SP.session.tenant = { ...t }; },
       async adminTenants() { return Object.values(st.tenants).map((t) => ({ ...t })); },
+      async notifyPayment(n) { const t = st.tenants[tid()]; t.paymentNotice = { ...n, at: nowIso() }; save(); SP.session.tenant = { ...t }; },
+      async adminActivate(tenantId, planId, months) {
+        const t = st.tenants[tenantId];
+        const cur = t.status === 'active' && t.currentPeriodEnd && new Date(t.currentPeriodEnd) > new Date() ? new Date(t.currentPeriodEnd) : new Date();
+        cur.setMonth(cur.getMonth() + months);
+        Object.assign(t, { plan: planId, status: 'active', currentPeriodEnd: cur.toISOString(), paymentNotice: null, lastManualPayment: { planId, months, at: nowIso() } });
+        save(); if (SP.session.tenant && SP.session.tenant.id === tenantId) SP.session.tenant = { ...t };
+      },
       resetDemo() { try { localStorage.removeItem(KEY); } catch (_) {} mem = null; st = load(); seedDemo(st); save(); },
     };
     return api;
@@ -258,6 +266,20 @@
       async changePlan(planId) { await call('changePlan', { planId }); },
       async cancelSubscription() { await call('cancelSubscription', {}); },
       async adminTenants() { const s = await F.getDocs(F.collection(db, 'tenants')); return s.docs.map(conv); },
+      async notifyPayment(n) {
+        try { await F.updateDoc(F.doc(db, 'tenants', tid()), { paymentNotice: { ...n, at: nowIso() } }); } catch (e) { throw wrapErr(e); }
+        SP.session.tenant.paymentNotice = { ...n, at: nowIso() };
+      },
+      async adminActivate(tenantId, planId, months) {
+        const ref = F.doc(db, 'tenants', tenantId);
+        const t = (await F.getDoc(ref)).data();
+        const prev = t.currentPeriodEnd && t.currentPeriodEnd.toDate ? t.currentPeriodEnd.toDate() : null;
+        const cur = t.status === 'active' && prev && prev > new Date() ? new Date(prev) : new Date();
+        cur.setMonth(cur.getMonth() + months);
+        try {
+          await F.updateDoc(ref, { plan: planId, status: 'active', currentPeriodEnd: F.Timestamp.fromDate(cur), paymentNotice: null, lastManualPayment: { planId, months, at: nowIso() } });
+        } catch (e) { throw wrapErr(e); }
+      },
       async refreshTenant() { const t = await F.getDoc(F.doc(db, 'tenants', tid())); SP.session.tenant = conv(t); },
     };
     return api;

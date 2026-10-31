@@ -68,17 +68,49 @@
         t.status === 'trial' ? [h('dt', null, 'Deneme bitişi'), h('dd', null, date(t.trialEndsAt))] : null,
         t.currentPeriodEnd ? [h('dt', null, t.status === 'canceled' ? 'Erişim bitişi' : 'Sonraki ödeme'), h('dd', null, date(t.currentPeriodEnd))] : null,
         h('dt', null, 'Aylık ücret'), h('dd', null, money(s.plan.price) + ' + KDV')),
-      owner && t.status === 'active' ? h('button', { class: 'btn ghost sm', onclick: cancel }, 'Aboneliği iptal et') : null);
+      owner && t.status === 'active' && SP.config.paymentMode !== 'manual' ? h('button', { class: 'btn ghost sm', onclick: cancel }, 'Aboneliği iptal et') : null);
 
-    view.append(pageHead('Abonelik', 'Paketinizi seçin, kartınızdan her ay otomatik ödensin.'), statusCard,
+    const manual = SP.config.paymentMode === 'manual';
+    const notice = t.paymentNotice;
+    view.append(pageHead('Abonelik', manual ? 'Paketinizi seçin, aylık ücreti havale/EFT ile ödeyin.' : 'Paketinizi seçin, kartınızdan her ay otomatik ödensin.'), statusCard,
       !owner ? h('div', { class: 'banner info' }, 'Paket değişikliğini yalnızca servis sahibi yapabilir.') : null,
+      notice ? h('div', { class: 'banner info' }, `Ödeme bildiriminiz alındı (${(SP.PLANS[notice.planId] || {}).name || ''}, ${SP.ui.dateTime(notice.at)}). Ödeme hesabımıza geçince aboneliğiniz aktif edilecek.`) : null,
       SP.pricingCards((p) => {
         if (!owner) return null;
+        if (manual) {
+          const same = t.status === 'active' && t.plan === p.id;
+          return h('button', { class: 'btn block ' + (p.popular || same ? 'primary' : 'ghost'), onclick: () => payManual(p) }, same ? 'Süreyi uzat' : 'Havale ile öde');
+        }
         if (t.status === 'active' && t.plan === p.id) return h('button', { class: 'btn block', disabled: true }, 'Mevcut paketiniz');
         if (t.status === 'active') return h('button', { class: 'btn block ' + (p.popular ? 'primary' : 'ghost'), onclick: () => change(p) }, 'Bu pakete geç');
         return h('button', { class: 'btn block ' + (p.popular ? 'primary' : 'ghost'), onclick: () => buy(p) }, paid ? 'Yeniden abone ol' : 'Bu paketi seç');
       }),
-      h('p', { class: 'muted small center' }, 'Ödemeler iyzico altyapısıyla alınır; kart bilgileriniz servis yazılımında saklanmaz. Faturanız her ay e-posta adresinize gönderilir.'));
+      h('p', { class: 'muted small center' }, manual
+        ? 'Ödemeniz hesabımıza geçtiğinde aboneliğiniz 1 ay uzatılır. Süre bitmeden 5 gün önce uyarı görürsünüz.'
+        : 'Ödemeler iyzico altyapısıyla alınır; kart bilgileriniz servis yazılımında saklanmaz. Faturanız her ay e-posta adresinize gönderilir.'));
+
+    function payManual(p) {
+      const b = SP.config.bank || {};
+      const vat = SP.config.vatRate ?? 20;
+      const total = Math.round(p.price * (1 + vat / 100) * 100) / 100;
+      const ref = 'SP-' + String(t.id).slice(0, 6).toUpperCase();
+      const row = (k, v, copy) => h('div', { class: 'pay-row' }, h('span', { class: 'muted' }, k), h('b', { class: copy ? 'mono' : null }, v),
+        copy ? h('button', { class: 'btn sm ghost', onclick: () => { navigator.clipboard?.writeText(v).then(() => toast('Kopyalandı'), () => toast('Kopyalanamadı, elle seçin', 'err')); } }, 'Kopyala') : null);
+      const body = h('div', { class: 'stack' },
+        h('p', null, `${p.name} paketi için 1 aylık ücreti aşağıdaki hesaba gönderin. Açıklamaya mutlaka ödeme kodunu yazın.`),
+        h('div', { class: 'card pay-box' },
+          row('Tutar', `${money(total)} (KDV %${vat} dahil)`),
+          b.iban ? [row('Alıcı', b.accountHolder || '—'), b.bankName ? row('Banka', b.bankName) : null, row('IBAN', b.iban, true)] : h('p', { class: 'muted' }, `IBAN bilgisi için bize ulaşın: ${SP.config.supportPhone} · ${SP.config.supportEmail}`),
+          row('Açıklama (ödeme kodu)', `${ref} ${t.name}`.slice(0, 40), true)),
+        h('p', { class: 'muted small' }, 'Ödemeyi yaptıktan sonra aşağıdaki butona basın; kontrol edip aboneliğinizi aynı gün aktif ederiz.'));
+      const m = modal(`${p.name} — havale/EFT ile ödeme`, body, { actions: [
+        h('button', { class: 'btn ghost', onclick: () => m.close() }, 'Kapat'),
+        h('button', { class: 'btn primary', onclick: async () => {
+          try { await SP.api.notifyPayment({ planId: p.id, amount: total, ref }); m.close(); toast('Ödeme bildiriminiz alındı. Teşekkürler!'); SP.refresh(); }
+          catch (e) { toast(e.message, 'err'); }
+        } }, 'Ödemeyi yaptım'),
+      ] });
+    }
 
     async function change(p) {
       const cur = SP.PLANS[t.plan];
@@ -130,15 +162,37 @@
     const act = ts.filter((t) => t.status === 'active');
     const mrr = act.reduce((s, t) => s + ((SP.PLANS[t.plan] || {}).price || 0), 0);
     const trial = ts.filter((t) => SP.core.subState(t).trial);
+    const notices = ts.filter((t) => t.paymentNotice);
+    const activate = (t) => {
+      const n = t.paymentNotice || {};
+      formModal(`${t.name} — aboneliği aktif et`, [
+        { name: 'planId', label: 'Paket', type: 'select', options: SP.PLAN_ORDER.map((k) => [k, `${SP.PLANS[k].name} (${money(SP.PLANS[k].price)} + KDV)`]) },
+        { name: 'months', label: 'Kaç ay', type: 'number', min: 1, default: 1, required: true },
+      ], { planId: n.planId || t.plan }, async (d) => {
+        await SP.api.adminActivate(t.id, d.planId, Math.max(1, d.months || 1));
+        toast(`${t.name} aktif edildi`); SP.refresh();
+      }, { saveText: 'Aktif et' });
+    };
     view.append(pageHead('Platform yönetimi', 'Yazılımı kullanan tüm servisler'),
       h('div', { class: 'kpis' },
         kpi('Toplam servis', ts.length), kpi('Ücretli abone', act.length), kpi('Denemede', trial.length), kpi('Aylık gelir (KDV hariç)', money(mrr))),
+      notices.length ? [h('h2', { class: 'sec' }, `Bekleyen ödeme bildirimleri (${notices.length})`), table(notices, [
+        { label: 'Servis', get: (t) => h('b', null, t.name) },
+        { label: 'Paket', get: (t) => (SP.PLANS[t.paymentNotice.planId] || {}).name || '—' },
+        { label: 'Tutar', class: 'right', get: (t) => money(t.paymentNotice.amount) },
+        { label: 'Ödeme kodu', get: (t) => h('span', { class: 'mono' }, t.paymentNotice.ref || '—') },
+        { label: 'Bildirim', get: (t) => SP.ui.dateTime(t.paymentNotice.at) },
+        { label: '', class: 'right', get: (t) => h('button', { class: 'btn sm primary', onclick: () => activate(t) }, 'Ödemeyi onayla') },
+      ])] : null,
+      h('h2', { class: 'sec' }, 'Tüm servisler'),
       table(ts, [
         { label: 'Servis', get: (t) => h('div', null, h('b', null, t.name), h('div', { class: 'muted small' }, t.email || '')) },
         { label: 'Telefon', get: (t) => t.phone || '—' },
         { label: 'Paket', get: (t) => (SP.PLANS[t.plan] || {}).name || t.plan },
         { label: 'Durum', get: (t) => { const s = SP.core.subState(t); return badge(s.label, s.kind); } },
+        { label: 'Bitiş', get: (t) => date(t.status === 'trial' ? t.trialEndsAt : t.currentPeriodEnd) },
         { label: 'Kayıt', get: (t) => date(t.createdAt) },
+        { label: '', class: 'right', get: (t) => h('button', { class: 'btn sm ghost', onclick: () => activate(t) }, t.status === 'active' ? 'Süre uzat' : 'Aktif et') },
       ], { empty: 'Henüz kayıtlı servis yok' }));
   };
   function kpi(label, value, sub, kind) { return h('div', { class: 'kpi ' + (kind || '') }, h('small', null, label), h('b', null, value), sub ? h('span', { class: 'muted small' }, sub) : null); }

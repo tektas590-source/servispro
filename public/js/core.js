@@ -14,7 +14,15 @@
       if (days > 0) return { active: true, trial: true, daysLeft: days, plan, label: `Deneme · ${days} gün kaldı`, kind: days <= 3 ? 'warn' : 'info' };
       return { active: false, plan, label: 'Deneme süresi bitti', kind: 'err' };
     }
-    if (t.status === 'active') return { active: true, plan, label: plan.name + ' · Aktif', kind: 'ok' };
+    if (t.status === 'active') {
+      const end = toDate(t.currentPeriodEnd);
+      if (end && !isNaN(end)) {
+        const days = Math.ceil((end - now) / 86400000);
+        if (days < -3) return { active: false, plan, label: 'Abonelik süresi doldu', kind: 'err', expired: true };
+        if (days <= 5) return { active: true, plan, label: days >= 0 ? `${plan.name} · ${days} gün kaldı` : `${plan.name} · Süre doldu, ödeme bekleniyor`, kind: 'warn', endingSoon: true };
+      }
+      return { active: true, plan, label: plan.name + ' · Aktif', kind: 'ok' };
+    }
     if (t.status === 'past_due') {
       // ödeme alınamadı: 3 gün tolerans
       const end = toDate(t.currentPeriodEnd);
