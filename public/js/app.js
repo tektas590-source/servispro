@@ -44,11 +44,23 @@
     if (!SP.session.tenant && r.name !== 'yonetici') { root.replaceChildren(noTenant()); return; }
 
     const name = SP.pages[r.name] ? r.name : 'panel';
-    const shell = layout(name);
-    root.replaceChildren(shell.el);
-    try { await SP.pages[name](shell.view, r); }
-    catch (e) { console.error(e); if (my === rendering) shell.view.replaceChildren(h('div', { class: 'empty err' }, 'Sayfa yüklenemedi: ' + (e.message || e))); }
+    const key = name + '/' + (r.id || '');
+    const animate = key !== lastKey && SP.motion && !SP.motion.reduce;
+    lastKey = key;
+    const render = async () => {
+      const shell = layout(name);
+      root.replaceChildren(shell.el);
+      if (animate && !document.startViewTransition) shell.view.classList.add('enter');
+      try { await SP.pages[name](shell.view, r); }
+      catch (e) { console.error(e); if (my === rendering) shell.view.replaceChildren(h('div', { class: 'empty err' }, 'Sayfa yüklenemedi: ' + (e.message || e))); }
+    };
+    if (!animate || !document.startViewTransition) return render();
+    // Sayfa verisi gelene kadar en fazla 450 ms bekle, sonra geçişi oynat
+    let full;
+    await SP.motion.transition(() => { full = render(); return Promise.race([full, new Promise((res) => setTimeout(res, 450))]); });
+    await full;
   }
+  let lastKey = '';
   SP.refresh = route;
 
   function layout(active) {
