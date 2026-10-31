@@ -45,7 +45,7 @@
 
     const name = SP.pages[r.name] ? r.name : 'panel';
     const key = name + '/' + (r.id || '');
-    const animate = key !== lastKey && SP.motion && !SP.motion.reduce;
+    const animate = lastKey !== '' && key !== lastKey && SP.motion && !SP.motion.reduce;
     lastKey = key;
     const render = async () => {
       const shell = layout(name);

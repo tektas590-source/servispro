@@ -74,15 +74,19 @@
   }
 
   // Sayfa geçişi: destekleyen tarayıcıda View Transitions, diğerlerinde yumuşak belirme
+  // Güvenli sürüm: tarayıcı geçişi atlasa ya da zaman aşımına uğrasa bile sayfa her durumda çizilir.
   function transition(update) {
-    if (reduce) return update();
-    if (document.startViewTransition) {
-      let done;
-      const p = new Promise((r) => (done = r));
-      document.startViewTransition(async () => { await update(); done(); });
-      return p;
-    }
-    return update();
+    if (reduce || !document.startViewTransition || document.visibilityState !== 'visible') return update();
+    let ran = false, result;
+    const run = () => { if (!ran) { ran = true; result = update(); } return result; };
+    return new Promise((resolve) => {
+      const go = () => { const r = run(); Promise.resolve(r).then(resolve, resolve); return r; };
+      try {
+        const vt = document.startViewTransition(go);
+        ['ready', 'finished', 'updateCallbackDone'].forEach((k) => vt[k] && vt[k].catch(() => {}));
+      } catch (e) { go(); }
+      setTimeout(() => { if (!ran) go(); }, 300); // geçiş başlamazsa beklemeden çiz
+    });
   }
 
   // Nav: kaydırınca camlaşır
