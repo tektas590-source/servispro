@@ -28,8 +28,8 @@ SP.config = {
     iban: 'TR38 0004 6002 3388 8000 2860 81',        // TR.. IBAN
   },
   vatRate: 20,
-  supportPhone: '0 (5xx) xxx xx xx',
-  supportEmail: 'destek@servispro.com.tr',
+  supportPhone: '0501 066 46 55',
+  supportEmail: 'tektas590@gmail.com',
 };
 
 /* Paketler — fiyatları ve limitleri buradan değiştirin.
