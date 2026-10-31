@@ -23,9 +23,9 @@ SP.config = {
   // Ödeme yöntemi: 'manual' = havale/EFT (siz panelden aktif edersiniz), 'iyzico' = kartla otomatik abonelik
   paymentMode: 'manual',
   bank: {
-    accountHolder: '',          // Hesap sahibi adı soyadı / ünvan
-    bankName: '',               // Banka adı
-    iban: '',                   // TR.. IBAN
+    accountHolder: 'SERKAN TEKTAŞ',                 // Hesap sahibi adı soyadı / ünvan
+    bankName: 'Akbank',                              // Banka adı
+    iban: 'TR38 0004 6002 3388 8000 2860 81',        // TR.. IBAN
   },
   vatRate: 20,
   supportPhone: '0 (5xx) xxx xx xx',
