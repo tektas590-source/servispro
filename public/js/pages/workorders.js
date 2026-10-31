@@ -25,6 +25,22 @@
     };
   };
 
+  /* Müşteriye açık araç durum sayfası (#durum--TOKEN) */
+  const newToken = () => { const a = new Uint8Array(15); crypto.getRandomValues(a); return Array.from(a, (b) => (b % 36).toString(36)).join(''); };
+  SP.statusUrl = (token) => `${location.origin}${location.pathname}#durum--${token}`;
+  async function syncPublic(wo, v) {
+    if (!wo.publicToken) return;
+    const t = SP.session.tenant;
+    try {
+      await SP.api.setPublicStatus(wo.publicToken, {
+        shop: t.name || '', shopPhone: t.phone || '', shopAddress: t.address || '', logo: t.logo || null,
+        no: wo.no, plate: v.plate || '', vehicle: [v.make, v.model, v.year].filter(Boolean).join(' '),
+        status: wo.status, log: wo.statusLog || [], promised: wo.promised || null, createdAt: wo.createdAt || new Date().toISOString(),
+        total: ['hazir', 'teslim'].includes(wo.status) ? C.totals(wo.lines).total : null,
+      });
+    } catch (e) { console.warn('durum linki güncellenemedi', e); }
+  }
+
   SP.newWorkOrder = async (pre = {}) => {
     if (!C.guardWrite()) return;
     try { await monthlyCheck(); } catch (e) { return toast(e.message, 'err'); }
@@ -41,8 +57,10 @@
     ], cv.initial, async (d) => {
       const r = cv.resolve(d);
       const n = await SP.api.nextNo('workorder');
-      const wo = { no: 'IE-' + String(n).padStart(4, '0'), customerId: r.customerId, vehicleId: r.vehicleId, km: d.km, technician: d.technician, complaint: d.complaint, promised: d.promised, fuelLevel: d.fuelLevel, diagnosis: '', status: 'acik', lines: [], stockApplied: false, appointmentId: pre.appointmentId || null };
+      const now = new Date().toISOString();
+      const wo = { no: 'IE-' + String(n).padStart(4, '0'), customerId: r.customerId, vehicleId: r.vehicleId, km: d.km, technician: d.technician, complaint: d.complaint, promised: d.promised, fuelLevel: d.fuelLevel, diagnosis: '', status: 'acik', lines: [], stockApplied: false, appointmentId: pre.appointmentId || null, publicToken: newToken(), statusLog: [{ s: 'acik', at: now }] };
       const id = await C.add('workorders', wo);
+      await syncPublic({ ...wo, createdAt: now }, r.vehicle);
       if (d.km && (!r.vehicle.km || d.km > r.vehicle.km)) await C.update('vehicles', r.vehicleId, { km: d.km });
       if (pre.appointmentId) await C.update('appointments', pre.appointmentId, { status: 'geldi', workOrderId: id });
       toast(wo.no + ' açıldı'); SP.go('is-emri--' + id);
@@ -96,7 +114,8 @@
     const setDirty = () => { dirty = true; saveBtn.classList.add('pulse'); saveBtn.textContent = 'Kaydet •'; };
     async function save(extra = {}) {
       Object.assign(wo, extra);
-      await C.update('workorders', wo.id, { lines: wo.lines, diagnosis: wo.diagnosis, technician: wo.technician, km: wo.km, complaint: wo.complaint, note: wo.note || '', status: wo.status, stockApplied: !!wo.stockApplied, invoiceId: wo.invoiceId || null, deliveredAt: wo.deliveredAt || null });
+      await C.update('workorders', wo.id, { lines: wo.lines, diagnosis: wo.diagnosis, technician: wo.technician, km: wo.km, complaint: wo.complaint, note: wo.note || '', status: wo.status, stockApplied: !!wo.stockApplied, invoiceId: wo.invoiceId || null, deliveredAt: wo.deliveredAt || null, publicToken: wo.publicToken || null, statusLog: wo.statusLog || [] });
+      await syncPublic(wo, v);
       dirty = false; saveBtn.classList.remove('pulse'); saveBtn.textContent = 'Kaydet';
       toast('Kaydedildi');
     }
@@ -114,10 +133,10 @@
     }
     async function setStatus(st) {
       if (!C.guardWrite()) return;
-      const extra = { status: st };
+      const extra = { status: st, statusLog: [...(wo.statusLog || []), { s: st, at: new Date().toISOString() }] };
       if ((st === 'hazir' || st === 'teslim') && !wo.stockApplied) { wo.status = st; await applyStock(1); extra.stockApplied = true; }
       if (st === 'iptal' && wo.stockApplied) { await applyStock(-1); extra.stockApplied = false; }
-      if (st === 'teslim') extra.deliveredAt = new Date().toISOString();
+      if (st === 'teslim') { extra.deliveredAt = new Date().toISOString(); if (SP.planNextService) await SP.planNextService(wo.vehicleId, wo.km); }
       await save(extra); SP.refresh();
     }
 
@@ -203,6 +222,14 @@
 
     view.append(
       pageHead(`İş emri ${wo.no}`, `${dateTime(wo.createdAt)} · ${st.label}`,
+        h('button', { class: 'btn ghost', onclick: async () => {
+          if (!wo.publicToken) { if (!C.guardWrite()) return; wo.publicToken = newToken(); if (!(wo.statusLog || []).length) wo.statusLog = [{ s: wo.status, at: wo.createdAt }]; await save(); }
+          else await syncPublic(wo, v);
+          const url = SP.statusUrl(wo.publicToken);
+          const msg = `Merhaba ${c.name || ''}, ${v.plate || ''} plakalı aracınızın servis durumunu bu bağlantıdan takip edebilirsiniz: ${url}\n${SP.session.tenant.name}`;
+          if (c.phone) window.open(SP.waLink(c.phone, msg), '_blank', 'noopener');
+          else { navigator.clipboard && navigator.clipboard.writeText(url).then(() => toast('Durum linki kopyalandı'), () => {}); }
+        } }, 'Müşteriye durum linki'),
         h('button', { class: 'btn ghost', onclick: () => printWorkOrder(wo, c, v) }, 'Yazdır'),
         !wo.invoiceId ? h('button', { class: 'btn ghost', onclick: () => toInvoice('teklif') }, 'Teklif oluştur') : null,
         wo.invoiceId ? h('a', { class: 'btn ghost', href: '#fatura--' + wo.invoiceId }, 'Faturayı aç') : h('button', { class: 'btn ghost', onclick: () => toInvoice('fatura') }, 'Fatura kes'),

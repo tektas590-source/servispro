@@ -92,7 +92,7 @@
         h('h2', null, 'Defteri kapatmaya hazır mısınız?'),
         h('p', null, `${SP.config.trialDays} gün boyunca tüm özellikler ücretsiz. Sorunuz olursa arayın: ${SP.config.supportPhone}`),
         h('a', { href: '#kayit', class: 'btn primary lg shine' }, 'Hemen ücretsiz başla')),
-      h('footer', { class: 'l-foot' }, h('span', null, `© ${new Date().getFullYear()} ${SP.config.appName}`), h('span', null, SP.config.supportEmail), h('span', null, SP.config.supportPhone))));
+      h('footer', { class: 'l-foot' }, h('span', null, `© ${new Date().getFullYear()} ${SP.config.appName}`), SP.legalLinks(), h('span', null, SP.config.supportEmail), h('span', null, SP.config.supportPhone))));
 
     // fiyat kartlarına sıralı belirme
     root.querySelectorAll('.price-card').forEach((c, i) => { c.classList.add('rv'); c.style.setProperty('--i', i); });
@@ -136,7 +136,7 @@
       h('label', { class: 'field' }, h('span', null, 'Telefon'), h('input', { name: 'phone', type: 'tel', autocomplete: 'tel', placeholder: '05xx xxx xx xx' })),
       h('label', { class: 'field' }, h('span', null, 'E-posta'), h('input', { name: 'email', type: 'email', required: true, autocomplete: 'email' })),
       h('label', { class: 'field' }, h('span', null, 'Şifre (en az 6 karakter)'), h('input', { name: 'password', type: 'password', required: true, minlength: 6, autocomplete: 'new-password' })),
-      h('label', { class: 'check' }, h('input', { type: 'checkbox', required: true }), h('span', null, 'Kullanım koşullarını ve KVKK aydınlatma metnini okudum, kabul ediyorum.')),
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', required: true }), h('span', null, h('a', { href: '#sozlesme', target: '_blank' }, 'Abonelik sözleşmesini'), ' okudum ve kabul ediyorum; ', h('a', { href: '#kvkk', target: '_blank' }, 'KVKK aydınlatma metnini'), ' okudum.')),
       h('button', { class: 'btn primary block', type: 'submit' }, `${SP.config.trialDays} günlük denemeyi başlat`),
       h('p', { class: 'muted small center' }, 'Bir servisten davet aldıysanız aynı e-posta ile kayıt olun, o servise otomatik katılırsınız.')),
     async (d) => { await SP.api.register(d); toast('Hoş geldiniz! Deneme süreniz başladı.'); });

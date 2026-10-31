@@ -28,6 +28,15 @@ SP.config = {
     iban: 'TR38 0004 6002 3388 8000 2860 81',        // TR.. IBAN
   },
   vatRate: 20,
+  // Yasal metinlerde görünen satıcı / hizmet sağlayıcı bilgileri — eksikleri doldurun
+  legal: {
+    name: 'Serkan Tektaş',      // Şirket kurulursa ünvanı yazın
+    address: '',                // Tebligat adresi (zorunlu)
+    taxOffice: '',              // Vergi dairesi
+    taxNo: '',                  // VKN / TCKN
+    city: '',                   // Yetkili mahkeme / icra daireleri (il)
+    updated: '31.10.2026',
+  },
   supportPhone: '0501 066 46 55',
   supportEmail: 'duaservispro.destek@gmail.com',
 };

@@ -14,10 +14,10 @@
   };
 
   async function editAppt(a, after, preDate) {
-    if (!a && !C.guardWrite()) return;
+    if (!(a && a.id) && !C.guardWrite()) return;
     const cv = await SP.customerVehicleFields({ vehicleId: a && a.vehicleId });
     if (cv.empty) { toast('Önce bir müşteri ve araç kaydedin.', 'err'); SP.go('musteriler'); return; }
-    formModal(a ? 'Randevuyu düzenle' : 'Yeni randevu', [
+    formModal(a && a.id ? 'Randevuyu düzenle' : 'Yeni randevu', [
       { name: 'date', label: 'Tarih', type: 'date', required: true, default: preDate || SP.ui.today() },
       { name: 'time', label: 'Saat', type: 'time', required: true, default: '09:00' },
       ...cv.fields,
@@ -25,7 +25,7 @@
     ], { ...(cv.initial), ...(a || {}) }, async (d) => {
       const r = cv.resolve(d);
       const data = { date: d.date, time: d.time, note: d.note, vehicleId: r.vehicleId, customerId: r.customerId };
-      if (a) await C.update('appointments', a.id, data); else await C.add('appointments', { ...data, status: 'bekliyor' });
+      if (a && a.id) await C.update('appointments', a.id, data); else await C.add('appointments', { ...data, status: 'bekliyor' });
       toast('Randevu kaydedildi'); after();
     }, { wide: true });
   }

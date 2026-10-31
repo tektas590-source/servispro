@@ -57,7 +57,8 @@ service cloud.firestore {
         && !request.resource.data.keys().hasAny(['iyzico', 'currentPeriodEnd']);
       allow update: if (isOwner(tid)
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['name', 'phone', 'email', 'address', 'taxOffice', 'taxNo', 'iban', 'invoiceNote', 'paymentNotice']))
+               .hasOnly(['name', 'phone', 'email', 'address', 'taxOffice', 'taxNo', 'iban', 'invoiceNote', 'paymentNotice', 'logo', 'serviceKm', 'serviceMonths'])
+          && (request.resource.data.get('logo', null) == null || (request.resource.data.logo is string && request.resource.data.logo.size() < 300000)))
         // platform yöneticisi havale onayında aboneliği aktif eder / uzatır
         || (isAdmin()
           && request.resource.data.diff(resource.data).affectedKeys()
@@ -71,6 +72,15 @@ service cloud.firestore {
         allow read: if isMember(tid);
         allow write: if isMember(tid) && subActive(tid);
       }
+    }
+
+    // Müşteriye giden araç durum linki: bağlantıyı bilen okuyabilir, listelenemez
+    match /publicStatus/{token} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isMember(request.resource.data.tenantId) && subActive(request.resource.data.tenantId);
+      allow update: if isMember(resource.data.tenantId) && request.resource.data.tenantId == resource.data.tenantId && subActive(resource.data.tenantId);
+      allow delete: if isMember(resource.data.tenantId);
     }
 
     // yalnızca Cloud Functions erişir

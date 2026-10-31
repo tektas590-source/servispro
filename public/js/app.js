@@ -8,10 +8,12 @@
   const NAV = [
     ['panel', 'Gösterge paneli', '◧'],
     ['randevular', 'Randevular', '◷'],
+    ['hatirlatma', 'Bakım hatırlatma', '⟳'],
     ['is-emirleri', 'İş emirleri', '⚒'],
     ['musteriler', 'Müşteri & araç', '☺'],
     ['stok', 'Stok & parça', '▤'],
     ['faturalar', 'Fatura & tahsilat', '₺'],
+    ['raporlar', 'Raporlar', '▦'],
     ['ayarlar', 'Ayarlar', '⚙'],
     ['abonelik', 'Abonelik', '★'],
   ];
@@ -26,6 +28,7 @@
   }
   SP.go = (path) => { location.hash = '#' + path; };
 
+  const DEFAULT_TITLE = document.title;
   let rendering = 0;
   async function route() {
     const my = ++rendering;
@@ -33,6 +36,13 @@
     const root = document.getElementById('root');
     window.scrollTo(0, 0);
 
+    // Oturumdan bağımsız sayfalar: yasal metinler ve müşteriye giden araç durum linki
+    if ((SP.LEGAL || []).includes(r.name) || r.name === 'durum') {
+      root.replaceChildren();
+      await SP.pages[r.name](root, r);
+      return;
+    }
+    document.title = DEFAULT_TITLE;
     if (!SP.session) {
       if (!PUBLIC.includes(r.name)) { SP.go('giris'); return; }
       root.replaceChildren();
@@ -67,7 +77,7 @@
     const s = SP.session, sub = SP.core.subState(s.tenant);
     const view = h('main', { class: 'view', id: 'view' });
     view.append = (...a) => SP.ui.append(view, a); // null/false/dizi güvenli
-    const navLinks = NAV.map(([k, label, ic]) => h('a', { href: '#' + k, class: 'nav-link' + (k === active || (active === 'is-emri' && k === 'is-emirleri') || (active === 'musteri' && k === 'musteriler') || (active === 'fatura' && k === 'faturalar') ? ' active' : '') }, h('span', { class: 'ic' }, ic), label));
+    const navLinks = NAV.filter(([k]) => (k !== 'raporlar' || SP.can('reports')) && (k !== 'abonelik' || SP.session.isOwner)).map(([k, label, ic]) => h('a', { href: '#' + k, class: 'nav-link' + (k === active || (active === 'is-emri' && k === 'is-emirleri') || (active === 'musteri' && k === 'musteriler') || (active === 'fatura' && k === 'faturalar') ? ' active' : '') }, h('span', { class: 'ic' }, ic), label));
     if (s.isAdmin) navLinks.push(h('a', { href: '#yonetici', class: 'nav-link' + (active === 'yonetici' ? ' active' : '') }, h('span', { class: 'ic' }, '♛'), 'Platform yönetimi'));
     const side = h('aside', { class: 'side' },
       h('div', { class: 'brand' }, h('span', { class: 'logo' }, 'S'), h('div', null, h('b', null, SP.config.appName), h('small', null, s.tenant ? s.tenant.name : ''))),

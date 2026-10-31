@@ -30,6 +30,8 @@
         h('a', { href: '#randevular', class: 'kpi link' }, h('small', null, 'Bugünkü randevu'), h('b', null, todayA.length)),
         h('a', { href: '#faturalar', class: 'kpi link' }, h('small', null, 'Bu ay fatura'), h('b', null, money(ciro)), h('span', { class: 'muted small' }, `Tahsil edilen ${money(kasa)}`)),
         h('a', { href: '#faturalar', class: 'kpi link' + (receivable > 0 ? ' neg' : '') }, h('small', null, 'Toplam alacak'), h('b', null, money(receivable)))),
+      (() => { const td = SP.ui.today(), lim = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10); const n = vs.filter((v) => v.nextServiceDate && v.nextServiceDate <= lim).length; const late = vs.filter((v) => v.nextServiceDate && v.nextServiceDate < td).length;
+        return n ? h('a', { href: '#hatirlatma', class: 'banner info dash-remind' }, h('span', null, `${n} aracın bakımı 30 gün içinde geliyor` + (late ? ` (${late} tanesi gecikmiş)` : '') + '. Müşterilere hatırlatın, servisinize geri gelsinler.'), h('b', null, 'Listeyi aç →')) : null; })(),
       max != null ? h('div', { class: 'usage' }, h('span', null, `Bu ay ${monthWo} / ${max} iş emri`), h('div', { class: 'bar' }, h('i', { style: { width: Math.min(100, (monthWo / max) * 100) + '%' } }))) : null,
       h('div', { class: 'grid2' },
         h('section', null, h('h2', { class: 'sec' }, 'Serviste olan araçlar'), table(open.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt))).slice(0, 8), [

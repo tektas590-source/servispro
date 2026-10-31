@@ -22,6 +22,8 @@
     { name: 'vin', label: 'Şasi (VIN)', transform: (v) => v.toUpperCase() },
     { name: 'km', label: 'Kilometre', type: 'number', min: 0 },
     { name: 'color', label: 'Renk' },
+    { name: 'nextServiceDate', label: 'Sonraki bakım tarihi', type: 'date', hint: 'Teslimde otomatik planlanır.' },
+    { name: 'nextServiceKm', label: 'Sonraki bakım km', type: 'number', min: 0 },
   ];
   const makesList = () => h('datalist', { id: 'makes' }, C.MAKES.map((m) => h('option', { value: m })));
 
@@ -61,7 +63,7 @@
       ], { empty: q ? 'Aramanızla eşleşen müşteri yok' : 'Henüz müşteri yok — ilk müşterinizi ekleyin.', onRow: (c) => SP.go('musteri--' + c.id) }));
     };
     view.append(pageHead('Müşteri & araç', `${cs.length} müşteri · ${vs.length} araç`,
-      h('button', { class: 'btn primary', onclick: () => editCustomer(null, (d) => SP.go('musteri--' + d.id)) }, '+ Yeni müşteri')),
+      h('a', { class: 'btn ghost', href: '#ice-aktar?tur=musteri' }, 'Excel’den aktar'), h('button', { class: 'btn primary', onclick: () => editCustomer(null, (d) => SP.go('musteri--' + d.id)) }, '+ Yeni müşteri')),
       h('div', { class: 'toolbar' }, searchBox('Ad, telefon veya plaka ile ara…', (v) => { q = v; draw(); })), box);
     draw();
   };

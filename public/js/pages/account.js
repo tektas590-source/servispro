@@ -22,7 +22,12 @@
     } }, fields.map((f) => SP.ui.field(f, t[f.name])), h('div', { class: 'span2 right' }, h('button', { class: 'btn primary', type: 'submit' }, 'Kaydet')));
 
     const team = h('div', { class: 'card' }, h('div', { class: 'loading' }, 'Yükleniyor…'));
-    view.append(pageHead('Ayarlar', 'Servis bilgileri faturalarınızda görünür.'), h('h2', { class: 'sec' }, 'Servis bilgileri'), form, h('h2', { class: 'sec' }, 'Ekip'), team);
+    view.append(pageHead('Ayarlar', 'Servis bilgileri faturalarınızda görünür.'), h('h2', { class: 'sec' }, 'Servis bilgileri'), form,
+      SP.logoCard ? SP.logoCard() : null, SP.reminderSettings ? SP.reminderSettings() : null,
+      h('h2', { class: 'sec' }, 'Verileri içe aktar'),
+      h('div', { class: 'card row between' }, h('span', { class: 'muted' }, 'Eski programınızdaki müşteri, araç ve stok listelerini Excel’den tek seferde aktarın.'),
+        h('div', { class: 'row gap' }, h('a', { class: 'btn ghost', href: '#ice-aktar?tur=musteri' }, 'Müşteri & araç'), h('a', { class: 'btn ghost', href: '#ice-aktar?tur=stok' }, 'Stok kartları'))),
+      h('h2', { class: 'sec' }, 'Ekip'), team);
 
     async function loadTeam() {
       const { users, invites } = await SP.api.members();

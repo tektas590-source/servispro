@@ -29,7 +29,7 @@
     const reload = () => SP.refresh();
     const receivable = cs.reduce((s, c) => s + Math.max(0, C.customerBalance(c.id, inv, pay)), 0);
     const draw = () => {
-      tabs.replaceChildren(...[['fatura', 'Faturalar'], ['acik', 'Ödenmemiş'], ['teklif', 'Teklifler'], ['kasa', 'Kasa / tahsilatlar']].map(([k, l]) => h('button', { class: 'tab' + (tab === k ? ' on' : ''), onclick: () => { tab = k; draw(); } }, l)));
+      tabs.replaceChildren(...[['fatura', 'Faturalar'], ['acik', 'Ödenmemiş'], ['teklif', 'Teklifler'], ['kasa', 'Kasa / tahsilatlar']].filter(([k]) => k !== 'kasa' || SP.can('cash')).map(([k, l]) => h('button', { class: 'tab' + (tab === k ? ' on' : ''), onclick: () => { tab = k; draw(); } }, l)));
       extra.replaceChildren(tab === 'kasa' || tab === 'fatura' ? h('input', { type: 'month', value: month, class: 'month', 'aria-label': 'Ay', onchange: (e) => { month = e.target.value; draw(); } }) : '');
       if (tab === 'kasa') return drawKasa();
       let rows = inv.filter((i) => (tab === 'teklif' ? i.kind === 'teklif' : i.kind !== 'teklif'));
@@ -108,7 +108,7 @@
     i.lines.forEach((l) => { const n = (l.qty || 0) * (l.price || 0) * (1 - (l.discount || 0) / 100); const r = Number(l.vat ?? 20); byVat[r] = (byVat[r] || 0) + n * r / 100; });
     return h('div', { class: 'doc' },
       h('div', { class: 'doc-head' },
-        h('div', null, h('h2', null, t.name), h('div', null, t.address), h('div', null, [t.phone, t.email].filter(Boolean).join(' · ')), t.taxNo ? h('div', null, `VD: ${t.taxOffice || ''} · VKN: ${t.taxNo}`) : null),
+        h('div', null, t.logo ? h('img', { class: 'doc-logo', src: t.logo, alt: '' }) : null, h('h2', null, t.name), h('div', null, t.address), h('div', null, [t.phone, t.email].filter(Boolean).join(' · ')), t.taxNo ? h('div', null, `VD: ${t.taxOffice || ''} · VKN: ${t.taxNo}`) : null),
         h('div', { class: 'right' }, h('h1', null, i.kind === 'teklif' ? 'FİYAT TEKLİFİ' : 'SERVİS FATURASI'), h('div', null, 'No: ', h('b', null, i.no)), h('div', null, 'Tarih: ' + date(i.date)), i.kind === 'teklif' ? h('div', null, 'Geçerlilik: 15 gün') : null)),
       h('div', { class: 'doc-2col' },
         h('div', null, h('h4', null, 'Sayın'), h('div', null, h('b', null, c.name)), h('div', null, [c.address, c.city].filter(Boolean).join(', ')), c.taxNo ? h('div', null, `VD: ${c.taxOffice || ''} · No: ${c.taxNo}`) : null, h('div', null, c.phone)),

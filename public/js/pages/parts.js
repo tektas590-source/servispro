@@ -44,7 +44,7 @@
       if (max != null && n >= max) return toast(C.limitError('parts', max).message, 'err');
     }
     const ce = compatEditor(p ? p.compat : [], C.limits().compat);
-    formModal(p ? 'Parçayı düzenle' : 'Yeni stok kartı', [...partFields, ...(p ? [] : [{ name: 'stock', label: 'Açılış stoku', type: 'number', min: 0, default: 0 }])], p || { unit: 'adet', vat: SP.VAT_DEFAULT }, async (d) => {
+    formModal(p ? 'Parçayı düzenle' : 'Yeni stok kartı', [...partFields.filter((f) => f.name !== 'buy' || SP.can('costs')), ...(p ? [] : [{ name: 'stock', label: 'Açılış stoku', type: 'number', min: 0, default: 0 }])], p || { unit: 'adet', vat: SP.VAT_DEFAULT }, async (d) => {
       const all = await C.all('parts');
       if (all.some((x) => norm(x.code) === norm(d.code) && (!p || x.id !== p.id))) throw new Error('Bu stok kodu zaten kullanılıyor.');
       if (C.limits().compat) d.compat = ce.read(); else if (!p) d.compat = [];
@@ -110,7 +110,7 @@
       const value = rows.reduce((s, p) => s + (Number(p.stock) || 0) * (Number(p.buy) || 0), 0);
       fitInfo.replaceChildren(fitV ? h('div', { class: 'banner info' }, `Filtre: ${[fitV.make, fitV.model, fitV.year, fitV.engine].filter(Boolean).join(' ')} ile uyumlu parçalar`, h('button', { class: 'btn sm ghost', onclick: () => { fitV = null; draw(); } }, 'Filtreyi kaldır')) : '');
       box.replaceChildren(
-        h('p', { class: 'muted small' }, `${rows.length} kart · stok değeri (alış) ${money(value)}`),
+        h('p', { class: 'muted small' }, `${rows.length} kart` + (SP.can('costs') ? ` · stok değeri (alış) ${money(value)}` : '')),
         table(rows, [
           { label: 'Kod', get: (p) => h('div', null, h('b', null, p.code), p.oem ? h('div', { class: 'muted small mono' }, p.oem) : null) },
           { label: 'Parça', get: (p) => h('div', null, p.name, h('div', { class: 'muted small' }, [p.brand, p.shelf ? 'Raf ' + p.shelf : ''].filter(Boolean).join(' · '))) },
@@ -132,7 +132,7 @@
     };
     const critBtn = h('label', { class: 'check' }, h('input', { type: 'checkbox', onchange: (e) => { critical = e.target.checked; draw(); } }), h('span', null, 'Sadece kritik stok'));
     view.append(pageHead('Stok & parça', 'Satır üzerine tıklayarak kartı ve uyumluluk kurallarını düzenleyin.',
-      h('button', { class: 'btn ghost', onclick: findFit }, 'Araca göre bul'),
+      h('a', { class: 'btn ghost', href: '#ice-aktar?tur=stok' }, 'Excel’den aktar'), h('button', { class: 'btn ghost', onclick: findFit }, 'Araca göre bul'),
       h('button', { class: 'btn primary', onclick: () => editPart(null, reload) }, '+ Stok kartı')),
     h('div', { class: 'toolbar' }, searchBox('Kod, ad, marka veya OEM no…', (v) => { q = v; draw(); }), critBtn), fitInfo, box);
     draw();

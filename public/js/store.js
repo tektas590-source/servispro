@@ -100,6 +100,8 @@
       async changePlan(planId) { const t = st.tenants[tid()]; t.plan = planId; save(); SP.session.tenant = { ...t }; },
       async cancelSubscription() { const t = st.tenants[tid()]; t.status = 'canceled'; save(); SP.session.tenant = { ...t }; },
       async adminTenants() { return Object.values(st.tenants).map((t) => ({ ...t })); },
+      async setPublicStatus(token, data) { st.publicStatus = st.publicStatus || {}; st.publicStatus[token] = { ...data, tenantId: tid(), updatedAt: nowIso() }; save(); },
+      async getPublicStatus(token) { const x = (st.publicStatus || {})[token]; return delay(x ? { ...x } : null); },
       async notifyPayment(n) { const t = st.tenants[tid()]; t.paymentNotice = { ...n, at: nowIso() }; save(); SP.session.tenant = { ...t }; },
       async adminActivate(tenantId, planId, months) {
         const t = st.tenants[tenantId];
@@ -139,10 +141,10 @@
     const c1 = put('customers', { type: 'bireysel', name: 'Mehmet Yılmaz', phone: '0532 111 22 33', email: 'mehmet@example.com', city: 'Samsun', note: '' });
     const c2 = put('customers', { type: 'kurumsal', name: 'Karadeniz Lojistik Ltd.', phone: '0362 444 55 66', taxOffice: 'Atakum', taxNo: '9876543210', city: 'Samsun', note: 'Filo müşterisi, 30 gün vadeli' });
     const c3 = put('customers', { type: 'bireysel', name: 'Ayşe Demir', phone: '0544 777 88 99', city: 'Samsun' });
-    const v1 = put('vehicles', { customerId: c1, plate: '55 ABC 123', make: 'Peugeot', model: '301', year: 2018, engine: '1.6 HDi', vin: 'VF3DD9HJ0JJ000001', km: 128400, color: 'Beyaz' });
+    const v1 = put('vehicles', { customerId: c1, plate: '55 ABC 123', make: 'Peugeot', model: '301', year: 2018, engine: '1.6 HDi', vin: 'VF3DD9HJ0JJ000001', km: 128400, color: 'Beyaz', lastServiceAt: ago(6), nextServiceDate: dayStr(359), nextServiceKm: 138400 });
     const v2 = put('vehicles', { customerId: c2, plate: '55 KL 4410', make: 'Fiat', model: 'Doblo', year: 2020, engine: '1.6 Multijet', vin: 'ZFA26300000000002', km: 210300, color: 'Beyaz' });
-    const v3 = put('vehicles', { customerId: c3, plate: '55 AD 908', make: 'Renault', model: 'Clio', year: 2016, engine: '1.5 dCi', vin: 'VF15R0000000003', km: 96500, color: 'Kırmızı' });
-    const v4 = put('vehicles', { customerId: c2, plate: '55 KL 4411', make: 'Peugeot', model: 'Partner', year: 2019, engine: '1.6 HDi', km: 185000 });
+    const v3 = put('vehicles', { customerId: c3, plate: '55 AD 908', make: 'Renault', model: 'Clio', year: 2016, engine: '1.5 dCi', vin: 'VF15R0000000003', km: 96500, color: 'Kırmızı', lastServiceAt: ago(350), nextServiceDate: dayStr(12), nextServiceKm: 100000 });
+    const v4 = put('vehicles', { customerId: c2, plate: '55 KL 4411', make: 'Peugeot', model: 'Partner', year: 2019, engine: '1.6 HDi', km: 185000, lastServiceAt: ago(380), nextServiceDate: dayStr(-15), nextServiceKm: 190000 });
 
     const p1 = put('parts', { code: 'ER-YF-1601', name: 'Yağ Filtresi', brand: 'Eurorepar', oem: '1109.CK', unit: 'adet', buy: 120, sell: 210, vat: 20, stock: 14, minStock: 5, shelf: 'A-1',
       compat: [{ make: 'Peugeot', model: '', yearFrom: 2012, yearTo: 2022, engine: '1.6 HDi' }, { make: 'Citroen', model: '', yearFrom: 2012, yearTo: 2022, engine: '1.6 HDi' }] });
@@ -248,7 +250,7 @@
         });
       },
       async updateTenant(data) {
-        const allowed = ['name', 'phone', 'email', 'address', 'taxOffice', 'taxNo', 'iban', 'invoiceNote'];
+        const allowed = ['name', 'phone', 'email', 'address', 'taxOffice', 'taxNo', 'iban', 'invoiceNote', 'logo', 'serviceKm', 'serviceMonths'];
         const clean = Object.fromEntries(Object.entries(data).filter(([k]) => allowed.includes(k)));
         try { await F.updateDoc(F.doc(db, 'tenants', tid()), clean); } catch (e) { throw wrapErr(e); }
         Object.assign(SP.session.tenant, clean);
@@ -266,6 +268,10 @@
       async changePlan(planId) { await call('changePlan', { planId }); },
       async cancelSubscription() { await call('cancelSubscription', {}); },
       async adminTenants() { const s = await F.getDocs(F.collection(db, 'tenants')); return s.docs.map(conv); },
+      async setPublicStatus(token, data) {
+        try { await F.setDoc(F.doc(db, 'publicStatus', token), { ...data, tenantId: tid(), updatedAt: nowIso() }); } catch (e) { throw wrapErr(e); }
+      },
+      async getPublicStatus(token) { const d = await F.getDoc(F.doc(db, 'publicStatus', token)); return d.exists() ? d.data() : null; },
       async notifyPayment(n) {
         try { await F.updateDoc(F.doc(db, 'tenants', tid()), { paymentNotice: { ...n, at: nowIso() } }); } catch (e) { throw wrapErr(e); }
         SP.session.tenant.paymentNotice = { ...n, at: nowIso() };
