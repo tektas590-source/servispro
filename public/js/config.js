@@ -31,10 +31,10 @@ SP.config = {
   // Yasal metinlerde görünen satıcı / hizmet sağlayıcı bilgileri — eksikleri doldurun
   legal: {
     name: 'Serkan Tektaş',      // Şirket kurulursa ünvanı yazın
-    address: '',                // Tebligat adresi (zorunlu)
+    address: 'Karşıyaka Mah. Piyale Paşa Sk. No:2, Canik / Samsun', // Tebligat adresi
     taxOffice: '',              // Vergi dairesi
     taxNo: '',                  // VKN / TCKN
-    city: '',                   // Yetkili mahkeme / icra daireleri (il)
+    city: 'Samsun',             // Yetkili mahkeme / icra daireleri (il)
     updated: '31.10.2026',
   },
   supportPhone: '0501 066 46 55',
