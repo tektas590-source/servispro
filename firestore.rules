@@ -1,0 +1,73 @@
+rules_version = '2';
+// ServisPro güvenlik kuralları
+// - Her servis yalnızca kendi verisini görür (tenant izolasyonu)
+// - Abonelik/deneme süresi bitince kayıtlar okunabilir ama yazılamaz
+// - Paket, durum ve ödeme alanlarını yalnızca Cloud Functions değiştirebilir
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function profile() { return get(/databases/$(db)/documents/users/$(request.auth.uid)).data; }
+    function hasProfile() { return signedIn() && exists(/databases/$(db)/documents/users/$(request.auth.uid)); }
+    function isMember(tid) { return hasProfile() && profile().tenantId == tid; }
+    function isOwner(tid) { return isMember(tid) && profile().role == 'owner'; }
+    // Platform yöneticisi — config.js içindeki adminEmails ile aynı olmalı
+    function isAdmin() { return signedIn() && request.auth.token.email in ['tektas590@gmail.com'] && request.auth.token.email_verified == true; }
+
+    function subActive(tid) {
+      let t = get(/databases/$(db)/documents/tenants/$(tid)).data;
+      let end = t.get('currentPeriodEnd', null);
+      return t.status == 'active'
+        || (t.status == 'trial' && request.time < t.trialEndsAt)
+        || ((t.status == 'canceled' || t.status == 'past_due') && end != null && request.time < end + duration.value(3, 'd'));
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || (hasProfile() && resource.data.tenantId == profile().tenantId));
+      allow create: if signedIn() && request.auth.uid == uid && (
+        // yeni servis sahibi
+        (request.resource.data.role == 'owner'
+          && get(/databases/$(db)/documents/tenants/$(request.resource.data.tenantId)).data.ownerUid == uid)
+        // davet edilen personel
+        || (exists(/databases/$(db)/documents/invites/$(request.auth.token.email))
+          && get(/databases/$(db)/documents/invites/$(request.auth.token.email)).data.tenantId == request.resource.data.tenantId
+          && get(/databases/$(db)/documents/invites/$(request.auth.token.email)).data.role == request.resource.data.role)
+      );
+      allow update: if
+        (request.auth.uid == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']))
+        || (isOwner(resource.data.tenantId) && request.auth.uid != uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tenantId'])
+            && request.resource.data.tenantId == null);
+      allow delete: if false;
+    }
+
+    match /invites/{email} {
+      allow read: if signedIn() && (request.auth.token.email == email || isMember(resource.data.tenantId));
+      allow create, update: if isOwner(request.resource.data.tenantId);
+      allow delete: if signedIn() && (request.auth.token.email == email || isOwner(resource.data.tenantId));
+    }
+
+    match /tenants/{tid} {
+      allow read: if isMember(tid) || isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.status == 'trial'
+        && request.resource.data.plan == 'profesyonel'
+        && request.resource.data.trialEndsAt < request.time + duration.value(15, 'd')
+        && !request.resource.data.keys().hasAny(['iyzico', 'currentPeriodEnd']);
+      allow update: if isOwner(tid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['name', 'phone', 'email', 'address', 'taxOffice', 'taxNo', 'iban', 'invoiceNote']);
+      allow delete: if false;
+
+      // müşteriler, araçlar, iş emirleri, stok, faturalar, sayaçlar…
+      match /{col}/{id} {
+        allow read: if isMember(tid);
+        allow write: if isMember(tid) && subActive(tid);
+      }
+    }
+
+    // yalnızca Cloud Functions erişir
+    match /checkoutSessions/{id} { allow read, write: if false; }
+  }
+}
