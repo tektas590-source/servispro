@@ -8,12 +8,12 @@ SP.pages = SP.pages || {};
 SP.config = {
   appName: 'ServisPro',
   firebaseConfig: {
-    // apiKey: "...",
-    // authDomain: "PROJE.firebaseapp.com",
-    // projectId: "PROJE",
-    // storageBucket: "PROJE.appspot.com",
-    // messagingSenderId: "...",
-    // appId: "..."
+    apiKey: "AIzaSyBHAIbap3A1xmpjmiCNCNliy-eI8Mhtg1k",
+    authDomain: "servispro-b7732.firebaseapp.com",
+    projectId: "servispro-b7732",
+    storageBucket: "servispro-b7732.firebasestorage.app",
+    messagingSenderId: "811867300610",
+    appId: "1:811867300610:web:2cbe0500c8edaf601e981b",
   },
   functionsRegion: 'europe-west1',
   firebaseVersion: '10.14.1',
