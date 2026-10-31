@@ -29,7 +29,7 @@ SP.config = {
   },
   vatRate: 20,
   supportPhone: '0501 066 46 55',
-  supportEmail: 'tektas590@gmail.com',
+  supportEmail: 'duaservispro.destek@gmail.com',
 };
 
 /* Paketler — fiyatları ve limitleri buradan değiştirin.
